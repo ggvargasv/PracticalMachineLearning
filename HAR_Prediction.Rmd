@@ -1,0 +1,114 @@
+---
+title: "Practical Machine Learning"
+author: "Adam Smith"
+date: "7/13/2020"
+output: html_document
+---
+
+## Summary
+This paper will use data about how well a test user performs a particular exercise. I'm using data from the Human Activity Recognition study, details for which can be found [here](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har).  My goal is to be able to use the site's testing data to predict the 'classe' variable in an unknown dataset. 
+
+``` {r   cache=TRUE, warning=FALSE}
+library(caret)
+
+download.file(url = "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile="training.csv")
+training<-read.csv("training.csv", sep =',', header=TRUE) 
+
+## Redefine the 'classe' variable as a factor.  Then create a partition in the data for cross validation
+training$classe<- as.factor(training$classe)
+inTrain<- createDataPartition(training$classe, p = .50)[[1]]
+train<-training[inTrain,]
+validation<- training[-inTrain,]
+```
+
+### Cross Validation
+My first step will be to split my set of training data from the HAR study into two sets.  One set will be used for building and training the model.  The other set will be used to predict the value and compare that prediction to the actual value. With the code below I'm creating and 50/50 split.
+
+### Variable Selection
+Reading the HAR site it appears that the variable containing an  '_x', '_y' or '_z' in the name refer to the axes of motion that a user can perform.  Visually checking the data it also appears these are frequently populated, which is not true for all the variables.
+
+### Model Training  
+I'm building two models for this effort and will check the error rates of each: Random Forest and Gradient Boosting.
+
+```{r  cache=TRUE}
+
+
+## Build a Random Forest model predicting classe against the _x, _y and _z variables.
+rfmod<-train(classe~
+               gyros_belt_x+gyros_belt_y+gyros_belt_z+accel_belt_x+accel_belt_y+
+               accel_belt_z+magnet_belt_x+magnet_belt_y+magnet_belt_z+roll_arm+
+               pitch_arm+yaw_arm+total_accel_arm+gyros_arm_x+	gyros_arm_y+	
+               gyros_arm_z+	accel_arm_x+accel_arm_y+accel_arm_z+magnet_arm_x+	
+               magnet_arm_y+	magnet_arm_z+roll_dumbbell+	pitch_dumbbell+	yaw_dumbbell+
+               gyros_dumbbell_x+	gyros_dumbbell_y+	gyros_dumbbell_z+	accel_dumbbell_x+
+               accel_dumbbell_y+accel_dumbbell_z+	magnet_dumbbell_x+	magnet_dumbbell_y+
+               magnet_dumbbell_z+	roll_forearm+	pitch_forearm+yaw_forearm+gyros_forearm_x+
+               gyros_forearm_y+gyros_forearm_z+accel_forearm_x+accel_forearm_y+accel_forearm_z+
+               magnet_forearm_x+	magnet_forearm_y+	magnet_forearm_z,
+             method="rf", data=train)
+
+## Build a Gradient Boosted model predicting classe against the _x, _y and _z variables.
+gbmmod<-train(classe~
+               gyros_belt_x+gyros_belt_y+gyros_belt_z+accel_belt_x+accel_belt_y+
+               accel_belt_z+magnet_belt_x+magnet_belt_y+magnet_belt_z+roll_arm+
+               pitch_arm+yaw_arm+total_accel_arm+gyros_arm_x+	gyros_arm_y+	
+               gyros_arm_z+	accel_arm_x+accel_arm_y+accel_arm_z+magnet_arm_x+	
+               magnet_arm_y+	magnet_arm_z+roll_dumbbell+	pitch_dumbbell+	yaw_dumbbell+
+               gyros_dumbbell_x+	gyros_dumbbell_y+	gyros_dumbbell_z+	accel_dumbbell_x+
+               accel_dumbbell_y+accel_dumbbell_z+	magnet_dumbbell_x+	magnet_dumbbell_y+
+               magnet_dumbbell_z+	roll_forearm+	pitch_forearm+yaw_forearm+gyros_forearm_x+
+               gyros_forearm_y+	gyros_forearm_z+accel_forearm_x+accel_forearm_y+accel_forearm_z+
+               magnet_forearm_x+	magnet_forearm_y+	magnet_forearm_z,
+             method="gbm", data=train, verbose=FALSE)
+
+##Use the models created above to predict against the validation data frame
+predrf<-predict(rfmod,validation )
+predgbm<-predict(gbmmod, validation)
+```
+
+## In Sample and Out of Sample Error  
+Looking at the confusion matrix for each of the models, these models seems to do a good job predicting the classe variable.  
+```{r}
+outrf<-confusionMatrix(rfmod)
+rfmod_err<-100-(sum(diag(outrf$table)))
+rfmod_err
+
+outgbm<-confusionMatrix(gbmmod)
+gbmmod_err<-100-(sum(diag(outgbm$table)))
+gbmmod_err
+
+```
+### In Sample Error
+First, above we can see the Random Forest model has an in-sample error rate of `r rfmod_err`%, while the Gradient Boosting model's error rate is `r gbmmod_err`%. 
+
+
+```{r }
+# Confusion Table and Accuracy for Random Forest  
+rf_matrix<-confusionMatrix(predrf,validation$classe)
+rf_acc<-rf_matrix$overall['Accuracy']
+rf_err<-(1-rf_acc)*100
+
+# Confusion Table and Accuracy for Gradient Boosting
+gbm_matrix<-confusionMatrix(predgbm,validation$classe)
+gbm_acc<-gbm_matrix$overall['Accuracy']
+gbm_err<-(1-gbm_acc)*100
+```
+### Out of Sample Error
+Looking above at the confusion matrix for the prediction against the validation data I can see that the out of sample error is `r rf_err`% for the Random Forest model and `r gbm_err`% for the Gradient Boosting model
+
+
+
+## Summary  
+When I submit my model against the test set of data I will be using the Random Forest model because its accuracy is slightly better.  Both models do an effective job of predicting the classe variable in this case, random forest just does slightly better. 
+
+
+## Appendix
+Full confusion matrices for the Random Forest and the Gradient Boosted models are listed below.  
+```{r}
+confusionMatrix(rfmod)
+
+confusionMatrix(gbmmod)
+```
+
+
+
