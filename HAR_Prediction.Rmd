@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning"
-author: "Adam Smith"
-date: "7/13/2020"
+author: "German Giovanni Vargas"
+date: "7/20/2020"
 output: html_document
 ---
 
